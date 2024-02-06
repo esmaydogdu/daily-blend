@@ -1,3 +1,31 @@
+let crypto = require('node:crypto');
+
+const generateRandomString = (length) => {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const values = crypto.getRandomValues(new Uint8Array(length));
+  return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+}
+
+const generatedCodeVerifier = generateRandomString(64);
+
+const sha256 = async (plain) => {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(plain)
+  return crypto.subtle.digest('SHA-256', data)
+}
+
+const base64encode = (input) => {
+  return btoa(String.fromCharCode(...new Uint8Array(input)))
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+}
+
+const generatedHashed = async () => {
+  return await sha256(generatedCodeVerifier)
+}
+const hashed = generatedHashed()
+const generatedCodeChallenge = base64encode(hashed);
 
 export default {
   // Global page headers: https://go.nuxtjs.dev/config-head
@@ -19,7 +47,6 @@ export default {
 
   // Modules: https://go.nuxtjs.dev/config-modules
   modules: [
-    '@nuxtjs/dotenv',
     '@nuxtjs/axios',
     '@nuxtjs/auth-next'
   ],
@@ -41,7 +68,7 @@ export default {
         token: {
           property: 'access_token',
           type: 'Bearer',
-          maxAge: 180000,
+          maxAge: 1800,
         },
         refreshToken: {
           property: 'refresh_token',
@@ -53,19 +80,18 @@ export default {
         redirectUri: 'http://localhost:3000',
         logoutRedirectUri: '/',
         clientId: process.env.SPOTIFY_CLIENT_ID,
-        // clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+        clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
         scope: ['user-read-private', 'user-read-email'],
         state: '',
         codeChallengeMethod: 'S256',
-        codeChallenge: '',
-        codeVerifier: '',
+        codeChallenge: generatedCodeChallenge,
+        codeVerifier: generatedCodeVerifier,
         responseMode: '',
         acrValues: '',
-        autoLogout: true
+        autoLogout: false
       },
     },
   },
-
 
   // Global CSS: https://go.nuxtjs.dev/config-css
   css: [
