@@ -49,13 +49,6 @@ export default {
   },
   methods: {
     async fetchBlend() {
-      try {
-        const docsRef = await this.$fire.firestore.collection('users').get();
-        const userList = docsRef.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        console.log('user list:', userList)
-      } catch (e) {
-        console.log(e.message)
-      }
       const response = await this.$axios.get('/api/blend');
 
       console.log(response);
