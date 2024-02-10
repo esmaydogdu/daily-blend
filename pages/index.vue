@@ -49,8 +49,29 @@ export default {
   },
   methods: {
     async fetchBlend() {
-      const response = await this.$axios.get('/api/blend');
 
+      try {
+        // const users = await this.$supabase.from("user").select("*");
+        const user = await this.$supabase.from("user").insert({
+          username: 'someone2',
+          avatarUrl: 'https://google.com'
+        });
+        console.log('user', user)
+        const users = await this.$supabase.from("user").select("*");
+        // submit selectedTracks to seedTrack table
+        const userId = user.data[0].id
+        const seedTrackBody = this.selectedTracks.map(tr => {
+          return {
+            userId,
+            trackId: tr.id
+          }
+        })
+        await this.$supabase.from("seedTrack").insert(seedTrackBody);
+        console.log('users', users)
+      } catch (e) {
+        console.log('problem:', e.message)
+      }
+      const response = await this.$axios.get('/api/blend');
       console.log(response);
     },
     async logout() {

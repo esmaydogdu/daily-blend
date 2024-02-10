@@ -49,6 +49,10 @@ export default {
   modules: [
     '@nuxtjs/axios',
     '@nuxtjs/auth-next',
+    ['nuxt-supabase', {
+      supabaseUrl: process.env.SUPABASE_URL,
+      supabaseKey: process.env.SUPABASE_KEY
+    }]
   ],
 
   env: {
