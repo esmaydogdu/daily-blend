@@ -7,11 +7,16 @@
         track.artists[0].name }}
       </li>
     </ul>
-    <div>
-      {{ selectedTracks }}
+    <div v-for="item in selectedTracks" :key="item.id">
+      {{ item.name }} by
+      <span v-if="item.artists.length === 1">{{ item.artists[0].name }}</span>
+      <template v-else-if="item.artists.length >= 1">
+        <span v-for="artist in item.artists" :key="artist.id">{{ artist.name }}&nbsp;</span>
+      </template>
+      <button @click="removeTrack(item.id)">Remove</button>
     </div>
     <button @click="logout">Logout</button>
-    <button @click="createBlend">Blend</button>
+    <button @click="createBlend">Send it to blend</button>
   </div>
 </template>
 
@@ -43,6 +48,18 @@ export default {
     }
   },
   methods: {
+    async fetchBlend() {
+      try {
+        const docsRef = await this.$fire.firestore.collection('users').get();
+        const userList = docsRef.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        console.log('user list:', userList)
+      } catch (e) {
+        console.log(e.message)
+      }
+      const response = await this.$axios.get('/api/blend');
+
+      console.log(response);
+    },
     async logout() {
       try {
 
@@ -58,6 +75,12 @@ export default {
     addTrack(track) {
       this.selectedTracks.push(track)
     },
+    removeTrack(id) {
+      const trackIndex = this.selectedTracks.findIndex(track => track.id === id)
+      if (trackIndex > -1) {
+        this.selectedTracks.splice(trackIndex, 1)
+      }
+    },
     async createBlend() {
       const id1 = this.selectedTracks[0].id
       const id2 = this.selectedTracks[1].id
@@ -71,6 +94,13 @@ export default {
         }
       );
       console.log('recomm', response.data)
+
+      try {
+        await this.fetchBlend();
+      } catch (e) {
+        console.log(e.message)
+      }
+
       return response.data;
     },
     search: debounce(function () {
