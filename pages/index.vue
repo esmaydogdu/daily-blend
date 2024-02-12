@@ -1,5 +1,6 @@
 <template>
   <div>
+    <button @click="logout">Logout</button>
     <h1>welcome {{ userProfile.display_name }}</h1>
     <input v-model="searchQuery" @input="search" placeholder="Search for songs...">
     <ul>
@@ -15,7 +16,6 @@
       </template>
       <button @click="removeTrack(item.id)">Remove</button>
     </div>
-    <button @click="logout">Logout</button>
     <button @click="createBlend">Send it to blend</button>
   </div>
 </template>
@@ -31,7 +31,7 @@ export default {
       selectedTracks: []
     };
   },
-  async asyncData({ $auth, $axios }) {
+  async asyncData({ $auth, $axios, $store }) {
     try {
       if ($auth.loggedIn && $auth.strategy.token) {
         const apiResponse = await $axios.get('https://api.spotify.com/v1/me', {
