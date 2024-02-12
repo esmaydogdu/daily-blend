@@ -31,7 +31,7 @@ export default {
       selectedTracks: []
     };
   },
-  async asyncData({ $auth, $axios, $store }) {
+  async asyncData({ $auth, $axios, $supabase }) {
     try {
       if ($auth.loggedIn && $auth.strategy.token) {
         const apiResponse = await $axios.get('https://api.spotify.com/v1/me', {
@@ -39,6 +39,15 @@ export default {
             Authorization: `Bearer ${$auth.strategy.token}`,
           },
         });
+
+        console.log('$auth.user', $auth.user.id, $auth?.user?.images[1]?.url)
+
+        const user = await $supabase.from('user').upsert({
+          username: $auth?.user?.id,
+          avatarUrl: $auth?.user?.images[1]?.url
+        }, { onConflict: ['username'] })
+
+        console.log('>> user:', user)
 
         return { userProfile: apiResponse.data };
       }
@@ -52,10 +61,10 @@ export default {
 
       try {
         // const users = await this.$supabase.from("user").select("*");
-        const user = await this.$supabase.from("user").insert({
+        const user = await this.$supabase.from("user").insert([{
           username: 'someone2',
           avatarUrl: 'https://google.com'
-        });
+        }]);
         console.log('user', user)
         const users = await this.$supabase.from("user").select("*");
         // submit selectedTracks to seedTrack table
