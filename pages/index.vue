@@ -40,16 +40,12 @@ export default {
           },
         });
 
-        console.log('$auth.user', $auth.user.id, $auth?.user?.images[1]?.url)
-
-        const user = await $supabase.from('user').upsert({
+        await $supabase.from('user').upsert({
           username: $auth?.user?.id,
           avatarUrl: $auth?.user?.images[1]?.url
         }, { onConflict: ['username'] })
 
-        console.log('>> user:', user)
-
-        return { userProfile: apiResponse.data };
+        return { userProfile: apiResponse.data }
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -57,31 +53,81 @@ export default {
     }
   },
   methods: {
-    async fetchBlend() {
+    async createBlend() {
+      // const id1 = this.selectedTracks[0].id
+      // const id2 = this.selectedTracks[1].id
+      // console.log('ids', id1, id2)
+      // const response = await this.$axios.get(
+      //   `https://api.spotify.com/v1/recommendations?seed_tracks=${id1},${id2}`,
+      //   {
+      //     headers: {
+      //       Authorization: `Bearer ${this.$auth.strategy.token}`,
+      //     },
+      //   }
+      // );
+      // console.log('recomm', response.data)
 
       try {
-        // const users = await this.$supabase.from("user").select("*");
-        const user = await this.$supabase.from("user").insert([{
-          username: 'someone2',
-          avatarUrl: 'https://google.com'
-        }]);
-        console.log('user', user)
-        const users = await this.$supabase.from("user").select("*");
-        // submit selectedTracks to seedTrack table
-        const userId = user.data[0].id
+        // Fetch user id from db
+        const username = this.$auth.user.id
+        console.log('username', username)
+        const { data } = await this.$supabase.from('user').select('id').eq('username', username)
+        console.log('data', data)
+        const userId = data[0].id
+
+        // Create seed track body to post
+        const trackIds = this.selectedTracks.map(track => track.id)
+        const tracks = this.selectedTracks.map(track => {
+          return {
+            userId: userId,
+            trackId: track.id
+          }
+        })
+
+        console.log('tracks to post', tracks)
+
+        const seeds = await this.$supabase.from("seedTrack").insert(tracks);
+        console.log(seeds)
+
+        // Check other seeds
+        const otherSeeds = await this.$supabase
+          .from('seedTrack')
+          .select('userId, trackId')
+          .neq('trackId', trackIds)
+        // still need to check if there is another user here
+        console.log('otherSeeds', otherSeeds)
+
+
+
+
+
+
+        // make a call to supase to see 
+
+      } catch (e) {
+        console.log(e.message)
+      }
+    },
+    async postBlend() {
+
+      try {
+        const username = this.$auth.user.id
+        const { data } = await this.$supabase.from('user').select('id').eq('username', username)
+        console.log('user from supabase', data[0])
+        const userId = data[0].id
         const seedTrackBody = this.selectedTracks.map(tr => {
           return {
             userId,
             trackId: tr.id
           }
         })
-        await this.$supabase.from("seedTrack").insert(seedTrackBody);
-        console.log('users', users)
+        console.log('seedTrackBody', seedTrackBody)
+        const { data2 } = await this.$supabase.from("seedTrack").insert(seedTrackBody);
       } catch (e) {
         console.log('problem:', e.message)
       }
-      const response = await this.$axios.get('/api/blend');
-      console.log(response);
+      // const res = await this.$axios.get('/api/blend');
+      // console.log(res);
     },
     async logout() {
       try {
@@ -103,28 +149,6 @@ export default {
       if (trackIndex > -1) {
         this.selectedTracks.splice(trackIndex, 1)
       }
-    },
-    async createBlend() {
-      const id1 = this.selectedTracks[0].id
-      const id2 = this.selectedTracks[1].id
-      console.log('ids', id1, id2)
-      const response = await this.$axios.get(
-        `https://api.spotify.com/v1/recommendations?seed_tracks=${id1},${id2}`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.$auth.strategy.token}`,
-          },
-        }
-      );
-      console.log('recomm', response.data)
-
-      try {
-        await this.fetchBlend();
-      } catch (e) {
-        console.log(e.message)
-      }
-
-      return response.data;
     },
     search: debounce(function () {
       try {
