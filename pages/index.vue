@@ -1,22 +1,35 @@
 <template>
   <div>
-    <button @click="logout">Logout</button>
-    <h1>welcome {{ userProfile.display_name }}</h1>
-    <input v-model="searchQuery" @input="search" placeholder="Search for songs...">
-    <ul>
-      <li v-for="track in searchResults" :key="track.id" @click="addTrack(track)">{{ track.name }} by {{
-        track.artists[0].name }}
-      </li>
-    </ul>
-    <div v-for="item in selectedTracks" :key="item.id">
-      {{ item.name }} by
-      <span v-if="item.artists.length === 1">{{ item.artists[0].name }}</span>
-      <template v-else-if="item.artists.length >= 1">
-        <span v-for="artist in item.artists" :key="artist.id">{{ artist.name }}&nbsp;</span>
-      </template>
-      <button @click="removeTrack(item.id)">Remove</button>
+    <div v-if="loading">loading...</div>
+    <div v-else>
+      <button @click="logout">Logout</button>
+      <h1>welcome {{ userProfile.display_name }}</h1>
+      <input v-model="searchQuery" @input="search" placeholder="Search for songs...">
+      <ul>
+        <li v-for="track in searchResults" :key="track.id" @click="addTrack(track)">{{ track.name }} by {{
+          track.artists[0].name }}
+        </li>
+      </ul>
+      <div v-if="!!selectedTrack">
+        {{ selectedTrack.name }} by
+        <span v-if="selectedTrack.artists.length === 1">{{ selectedTrack.artists[0].name }}</span>
+        <template v-else-if="selectedTrack.artists.length >= 1">
+          <span v-for="artist in selectedTrack.artists" :key="artist.id">{{ artist.name }}&nbsp;</span>
+        </template>
+        <button @click="removeTrack">Remove</button>
+      </div>
+      <button @click="createBlend" :disabled="!selectedTrack">Send it to blend</button>
     </div>
-    <button @click="createBlend">Send it to blend</button>
+    <!-- <div v-for="item in selectedTracks" :key="item.id">
+        {{ item.name }} by
+        <span v-if="item.artists.length === 1">{{ item.artists[0].name }}</span>
+        <template v-else-if="item.artists.length >= 1">
+          <span v-for="artist in item.artists" :key="artist.id">{{ artist.name }}&nbsp;</span>
+        </template>
+        <button @click="removeTrack(item.id)">Remove</button>
+      </div>
+      <button @click="createBlend" :disabled="!selectedTracks.length">Send it to blend</button>
+    </div> -->
   </div>
 </template>
 
@@ -28,7 +41,9 @@ export default {
     return {
       searchQuery: '',
       searchResults: [],
-      selectedTracks: []
+      selectedTracks: [],
+      selectedTrack: null,
+      loading: false
     };
   },
   async asyncData({ $auth, $axios, $supabase }) {
@@ -40,12 +55,13 @@ export default {
           },
         });
 
-        await $supabase.from('user').upsert({
+        const { data } = await $supabase.from('user').upsert({
           username: $auth?.user?.id,
           avatarUrl: $auth?.user?.images[1]?.url
         }, { onConflict: ['username'] })
-
-        return { userProfile: apiResponse.data }
+        // console.log('data in async data', data)
+        // console.log('data in async data', data[0].id)
+        return { userProfile: { ...apiResponse.data, username: apiResponse.data.id, id: data[0].id } }
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -54,50 +70,53 @@ export default {
   },
   methods: {
     async createBlend() {
-      // const id1 = this.selectedTracks[0].id
-      // const id2 = this.selectedTracks[1].id
-      // console.log('ids', id1, id2)
-      // const response = await this.$axios.get(
-      //   `https://api.spotify.com/v1/recommendations?seed_tracks=${id1},${id2}`,
-      //   {
-      //     headers: {
-      //       Authorization: `Bearer ${this.$auth.strategy.token}`,
-      //     },
-      //   }
-      // );
-      // console.log('recomm', response.data)
-
       try {
-        // Fetch user id from db
-        const username = this.$auth.user.id
-        console.log('username', username)
-        const { data } = await this.$supabase.from('user').select('id').eq('username', username)
-        console.log('data', data)
-        const userId = data[0].id
-
         // Create seed track body to post
+        this.loading = true;
         const trackIds = this.selectedTracks.map(track => track.id)
         const tracks = this.selectedTracks.map(track => {
           return {
-            userId: userId,
-            trackId: track.id
+            userId: this.userProfile.id,
+            trackId: track.id,
+            submittedAt: Date.now()
           }
         })
 
-        console.log('tracks to post', tracks)
-
-        const seeds = await this.$supabase.from("seedTrack").insert(tracks);
-        console.log(seeds)
+        const submittedSeeds = await this.$supabase.from("seedTrack").insert(tracks);
+        // this is returning the freshly inserted ones
+        console.log(submittedSeeds)
 
         // Check other seeds
-        const otherSeeds = await this.$supabase
+        const seedsFromOtherUsers = await this.$supabase
           .from('seedTrack')
           .select('userId, trackId')
           .neq('trackId', trackIds)
+          .neq('userId', this.userProfile.id)
         // still need to check if there is another user here
-        console.log('otherSeeds', otherSeeds)
+        console.log('otherSeeds', seedsFromOtherUsers)
 
+        const runRecommendation = submittedSeeds.data.length && seedsFromOtherUsers.data.length
 
+        if (runRecommendation) {
+          console.log('we are going to generate recommendations with all the seeds')
+          const allSeeds = await this.$supabase.from('seedTrack').select('trackId')
+          const trackIds = allSeeds.data.map(tr => tr.trackId)
+          // console.log('allSeeds:', allSeeds)
+          const recommendation = await this.$axios.get('https://api.spotify.com/v1/recommendations', {
+            headers: {
+              Authorization: `Bearer ${this.$auth.strategy.token}`,
+            },
+            params: {
+              limit: encodeURIComponent('1'),
+              seed_tracks: trackIds.join(','),
+              seed_artists: encodeURIComponent(''),
+              seed_genres: encodeURIComponent('')
+            },
+          });
+
+          console.log('recommendation:', recommendation)
+          this.resetSearch()
+        }
 
 
 
@@ -107,27 +126,7 @@ export default {
       } catch (e) {
         console.log(e.message)
       }
-    },
-    async postBlend() {
-
-      try {
-        const username = this.$auth.user.id
-        const { data } = await this.$supabase.from('user').select('id').eq('username', username)
-        console.log('user from supabase', data[0])
-        const userId = data[0].id
-        const seedTrackBody = this.selectedTracks.map(tr => {
-          return {
-            userId,
-            trackId: tr.id
-          }
-        })
-        console.log('seedTrackBody', seedTrackBody)
-        const { data2 } = await this.$supabase.from("seedTrack").insert(seedTrackBody);
-      } catch (e) {
-        console.log('problem:', e.message)
-      }
-      // const res = await this.$axios.get('/api/blend');
-      // console.log(res);
+      this.loading = false
     },
     async logout() {
       try {
@@ -141,14 +140,22 @@ export default {
 
       }
     },
+    resetSearch() {
+      this.searchQuery = ''
+      this.selectedTracks = []
+      this.searchResults = []
+    },
     addTrack(track) {
+      this.selectedTrack = track
       this.selectedTracks.push(track)
     },
-    removeTrack(id) {
-      const trackIndex = this.selectedTracks.findIndex(track => track.id === id)
-      if (trackIndex > -1) {
-        this.selectedTracks.splice(trackIndex, 1)
-      }
+    removeTrack() {
+      // const trackIndex = this.selectedTracks.findIndex(track => track.id === id)
+      // if (trackIndex > -1) {
+      //   this.selectedTracks.splice(trackIndex, 1)
+      // }
+      this.selectedTracks = [];
+      this.selectedTrack = null
     },
     search: debounce(function () {
       try {
