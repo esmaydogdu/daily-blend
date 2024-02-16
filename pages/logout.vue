@@ -1,6 +1,6 @@
 <template>
   <div>
-    Page logout
+    Sad to see you go, but you're welcome anytime
   </div>
 </template>
 

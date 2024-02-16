@@ -48,8 +48,13 @@ export default {
   // Modules: https://go.nuxtjs.dev/config-modules
   modules: [
     '@nuxtjs/axios',
-    '@nuxtjs/auth-next'
+    '@nuxtjs/auth-next',
+    ['nuxt-supabase', {
+      supabaseUrl: process.env.SUPABASE_URL,
+      supabaseKey: process.env.SUPABASE_KEY
+    }]
   ],
+
   env: {
     spotifyId: process.env.SPOTIFY_CLIENT_ID,
     spotifySecret: process.env.SPOTIFY_CLIENT_SECRET
@@ -78,7 +83,7 @@ export default {
         grantType: 'authorization_code',
         accessType: undefined,
         redirectUri: 'http://localhost:3000',
-        logoutRedirectUri: '/',
+        logoutRedirectUri: 'http://localhost:3000/logout',
         clientId: process.env.SPOTIFY_CLIENT_ID,
         clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
         scope: ['user-read-private', 'user-read-email'],
@@ -114,5 +119,9 @@ export default {
 
   // Build Configuration: https://go.nuxtjs.dev/config-build
   build: {
-  }
+  },
+
+  serverMiddleware: [
+    { path: "/api/blend", handler: "~/api/blend.js" },
+  ]
 }

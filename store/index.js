@@ -1,21 +1,33 @@
-// holds your root state
 export const state = () => ({
-  counter: 0
+  user: null
 })
 
-// contains your actions
-export const actions = {
-  counterUp({ state, commit }) {
-    commit('setCounter', state.counter + 1)
-  }
-}
-// contains your mutations
 export const mutations = {
-  setCounter(state, value) {
-    state.counter = value
-  }
-}
-// your root getters
-export const getters = {
-  myGetter(state) { return state.counter + 1000 }
+  setUser(state, user) {
+    state.user = user;
+  },
+};
+
+export const actions = {
+  async saveUser({ commit, rootState }) {
+
+    try {
+      const { data, error } = await this.$supabase.from('user').upsert({
+        username: rootState.auth?.user?.id,
+        avatarUrl: rootState.auth?.user?.images[1]?.url
+      }, { onConflict: ['username'] })
+
+      commit('setUser', data[0])
+    } catch (e) {
+      throw e
+    }
+  },
+  recommendationTrackMapper(_, track) {
+    console.log('received track:', track)
+    return {
+      id: track.trackId,
+      trackUrl: track.trackUrl,
+      userRates: JSON.parse(track.userRates || '{}'),
+    }
+  },
 }
