@@ -21,5 +21,13 @@ export const actions = {
     } catch (e) {
       throw e
     }
-  }
+  },
+  recommendationTrackMapper(_, track) {
+    console.log('received track:', track)
+    return {
+      id: track.trackId,
+      trackUrl: track.trackUrl,
+      userRates: JSON.parse(track.userRates || '{}'),
+    }
+  },
 }
