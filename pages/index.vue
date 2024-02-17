@@ -3,7 +3,7 @@
     <div v-if="loading">loading...</div>
     <div v-else>
       <button @click="logout">Logout</button>
-      <Recommendation :track="recommendedTrack" :isLoading="isRecommendationLoading" />
+      <Recommendation :track="recommendedTrack" :isLoading="isRecommendationLoading" :color="hexColor" />
       <h1>welcome {{ userProfile.display_name }}</h1>
       <input v-model="searchQuery" @input="search" placeholder="Search for songs...">
       <ul>
@@ -37,6 +37,7 @@
 <script>
 import { debounce } from 'lodash';
 import Recommendation from '../components/Recommendation.vue';
+import { strToRGB } from '../utils/generateColorCode'
 
 export default {
   components: { Recommendation },
@@ -49,7 +50,8 @@ export default {
       selectedTrack: null,
       recommendedTrack: null,
       loading: false,
-      isRecommendationLoading: false
+      isRecommendationLoading: false,
+      hexColor: '000'
     };
   },
   async asyncData({ $auth, $axios, $supabase, store }) {
@@ -158,6 +160,10 @@ export default {
 
         this.recommendedTrack = await this.$store.dispatch('recommendationTrackMapper', data[0])
         this.isRecommendationLoading = false
+
+        this.hexColor = strToRGB(recommendation.data?.tracks[0]?.id)
+
+        console.log('hex Code for the recommendation:', this.hexColor)
 
         console.log('recomm table returning:', data)
 
