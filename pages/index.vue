@@ -75,12 +75,12 @@ export default {
           .order('createdAt', { ascending: false })
           .range(0, 1)
         console.log('>>>>> recommended:', recommended)
-        if (recommended?.data.length) {
+        if (recommended?.data?.length) {
           recommendedTrack = await store.dispatch('recommendationTrackMapper', recommended.data[0])
         }
         console.log('recommendedTrack in data', recommendedTrack)
         return {
-          userProfile: { ...apiResponse.data, username: apiResponse.data.id, id: data[0].id },
+          userProfile: { ...apiResponse.data, username: apiResponse.data.id, id: data ? [0].id },
           recommendedTrack
         }
       }

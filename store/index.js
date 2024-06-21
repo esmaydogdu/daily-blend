@@ -1,5 +1,6 @@
 export const state = () => ({
-  user: null
+  user: null,
+  // isUserLoggedIn: this.$auth.loggedIn && this.$auth.strategy.token
 })
 
 export const mutations = {
